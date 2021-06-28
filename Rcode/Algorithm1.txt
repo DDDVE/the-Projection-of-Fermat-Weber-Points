@@ -1,0 +1,211 @@
+#此脚本用于记录新方法平均运算时间（规模改变）
+Oldt1_1 = proc.time()#程序开始时间
+#无需先将FW point添加至M最后一行
+var = 1#只改这里
+setwd(paste("D:/paperData/(120,20)vChanging/(0,",var,")",sep=""))
+files = dir(paste("D:/paperData/(120,20)vChanging/(0,",var,")",sep=""))
+
+circleNum = 100
+
+
+
+accuracy = 10**(-7)
+
+resultMatrixByNormalTraversal = matrix(nrow = circleNum,ncol = 3,byrow = TRUE) #初始化结果矩阵,Dim1 Dim2 次数
+#开始循环################################################################################
+for (circleN in 1:circleNum) {
+  #首先读取数据
+  numOfDim = 20;  numOfPoint = 120;  #这里要改！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+  M = data.matrix(read.csv(files[circleN]))
+  E = 0#初始化次数##############
+  #算M的FW point##############################################################
+  f.obj = c()
+  for (i in 1:numOfPoint) {
+    f.obj = c(f.obj,1)
+  }
+  for (i in 1:numOfDim) {
+    f.obj = c(f.obj,0)
+  }
+  #做f.con的左上1/4个
+  f.conLeftUpper = matrix(nrow = (numOfPoint*numOfDim*(numOfDim-1))/2,ncol = numOfPoint);f.conLeftUpper[is.na(f.conLeftUpper)] = 0
+  for (i in 1:(numOfPoint*numOfDim*(numOfDim-1))/2) {
+    j = (i-1)%/%(numOfDim*(numOfDim-1)/2)
+    f.conLeftUpper[i,j+1] = -1    #将-1的元素放进去
+  }
+  f.conLeftHalf = rbind(f.conLeftUpper,f.conLeftUpper)    #做成f.con的左半边
+  #做f.con的右上一小块
+  f.conRightUpperPiece = matrix(nrow = (numOfDim*(numOfDim-1))/2,ncol = numOfDim)
+  f.conRightUpperPiece[is.na(f.conRightUpperPiece)] = 0
+  numOfDim1 = numOfDim2 = numOfDim    #准备好多余的变量
+  numOfDim1 = numOfDim-1
+  for (c in 1:numOfDim1){
+    numOfDim2 = numOfDim-c
+    for (i in 1:numOfDim2){
+      a = i+(c-1)*numOfDim-(c*(c-1))/2
+      b = i+c
+      f.conRightUpperPiece[a,b] = -1
+      f.conRightUpperPiece[a,c] = 1
+    }
+  }
+  f.conRightUpper = c()
+  for (i in 1:numOfPoint){
+    f.conRightUpper = rbind(f.conRightUpper,f.conRightUpperPiece)
+  }
+  f.conRightHalf = rbind(f.conRightUpper,-1*f.conRightUpper)		#做成f.con的右半边
+  f.con = cbind(f.conLeftHalf,f.conRightHalf)		#做成完整的f.con
+  #生成不等号向量
+  f.dir = c()
+  a = numOfPoint*numOfDim*(numOfDim-1)
+  for (i in 1:a) {
+    f.dir = c(f.dir,"<=")
+  }
+  f.rhsFirstHalf = c()
+  numOfDim1 = numOfDim-1
+  for (i in 1:numOfPoint){#迭代到点数
+    for (j1 in 1:numOfDim1){#迭代到维数-1
+      a = j1+1
+      for (j2 in a:numOfDim){#迭代到维数
+        f.rhsFirstHalf = c(f.rhsFirstHalf,M[i,j1]-M[i,j2])
+      }
+    }
+  }
+  f.rhs = c(f.rhsFirstHalf, f.rhsFirstHalf*(-1))#做成完整的f.rhs
+  lp("min",f.obj,f.con,f.dir,f.rhs)
+  lp("min",f.obj,f.con,f.dir,f.rhs)$solution
+  solution = lp("min",f.obj,f.con,f.dir,f.rhs)$solution
+  #获取FWPoint并添加到M的最后一行
+  FWPoint = c()
+  a = numOfPoint+1; b = numOfPoint+numOfDim
+  for (i in a:b) {
+    FWPoint = c(FWPoint,solution[i])
+  }
+  #标准化
+  for (j in numOfDim:1){
+    FWPoint[j] = FWPoint[j] - FWPoint[1]	
+  }
+  #将标准化后的FWPoint添加到M的最后一行
+  M = rbind(M,FWPoint)
+  numOfPoint = numOfPoint + 1####################################
+  judgeNum = 0#初始化判别数
+  MAnother = M
+  vectorOfMin = c()
+  vectorOfMax = c()
+  for (j in 1:numOfDim){
+    MAnother[,j] = sort(MAnother[,j])
+    vectorOfMin = c(vectorOfMin,MAnother[1,j])
+    vectorOfMax = c(vectorOfMax,MAnother[numOfPoint,j])
+  }
+  vectorOfMin = sort(vectorOfMin)
+  minOfM = vectorOfMin[1]
+  vectorOfMax = sort(vectorOfMax)
+  maxOfM = vectorOfMax[numOfDim-1]
+  
+  #开始遍历情形######################################################
+  b1 = numOfDim-1
+  for (firDim in 2:b1) {
+    a1 = firDim + 1
+    for (secDim in a1:numOfDim) {
+      E = E + 1 #次数+1
+      #计算仅保留两维后的数据矩阵
+      MtoChange = M#将M保存一下，后续对MtoChange做改动
+      Dim1 = firDim; Dim2 = secDim
+      for (j in 2:numOfDim) {
+        if(j!=Dim1 & j!=Dim2){
+          MtoChange[,j] = minOfM
+        }
+      }
+      #计算FWpoint###########################################
+      #生成目标函数的系数向量
+      f.obj = c()
+      for (i in 1:numOfPoint) {
+        f.obj = c(f.obj,1)
+      }
+      for (i in 1:numOfDim) {
+        f.obj = c(f.obj,0)
+      }
+      #做f.con的左上1/4个
+      f.conLeftUpper = matrix(nrow = (numOfPoint*numOfDim*(numOfDim-1))/2,ncol = numOfPoint);f.conLeftUpper[is.na(f.conLeftUpper)] = 0
+      for (i in 1:(numOfPoint*numOfDim*(numOfDim-1))/2) {
+        j = (i-1)%/%(numOfDim*(numOfDim-1)/2)
+        f.conLeftUpper[i,j+1] = -1    #将-1的元素放进去
+      }
+      f.conLeftHalf = rbind(f.conLeftUpper,f.conLeftUpper)    #做成f.con的左半边
+      #做f.con的右上一小块
+      f.conRightUpperPiece = matrix(nrow = (numOfDim*(numOfDim-1))/2,ncol = numOfDim)
+      f.conRightUpperPiece[is.na(f.conRightUpperPiece)] = 0
+      numOfDim1 = numOfDim2 = numOfDim    #准备好多余的变量
+      numOfDim1 = numOfDim-1
+      for (c in 1:numOfDim1){
+        numOfDim2 = numOfDim-c
+        for (i in 1:numOfDim2){
+          a = i+(c-1)*numOfDim-(c*(c-1))/2
+          b = i+c
+          f.conRightUpperPiece[a,b] = -1
+          f.conRightUpperPiece[a,c] = 1
+        }
+      }
+      f.conRightUpper = c()
+      for (i in 1:numOfPoint){
+        f.conRightUpper = rbind(f.conRightUpper,f.conRightUpperPiece)
+      }
+      f.conRightHalf = rbind(f.conRightUpper,-1*f.conRightUpper)		#做成f.con的右半边
+      f.con = cbind(f.conLeftHalf,f.conRightHalf)		#做成完整的f.con
+      #生成不等号向量
+      f.dir = c()
+      a = numOfPoint*numOfDim*(numOfDim-1)
+      for (i in 1:a) {
+        f.dir = c(f.dir,"<=")
+      }
+      f.rhsFirstHalf = c()
+      numOfDim1 = numOfDim-1
+      for (i in 1:numOfPoint){#迭代到点数
+        for (j1 in 1:numOfDim1){#迭代到维数-1
+          a = j1+1
+          for (j2 in a:numOfDim){#迭代到维数
+            f.rhsFirstHalf = c(f.rhsFirstHalf,MtoChange[i,j1]-MtoChange[i,j2])
+          }
+        }
+      }
+      f.rhs = c(f.rhsFirstHalf, f.rhsFirstHalf*(-1))#做成完整的f.rhs
+      solution = lp("min",f.obj,f.con,f.dir,f.rhs)$solution  #获取解向量
+      #计算解向量到MtoChange每一行的tropical距离之和####################################
+      a = numOfPoint+1;b = numOfPoint+numOfDim
+      trueSolution = solution[a:b]#获取solution有用的一部分
+      b = nrow(MtoChange)
+      g = ncol(MtoChange)
+      optTropicalDistanceSum = 0
+      for (i in 1:b) {
+        gap = sort(trueSolution-MtoChange[i,])
+        optTropicalDistanceSum = optTropicalDistanceSum + (gap[g]-gap[1])
+      }
+      #计算MtoChange最后一行到其余各行的tropical距离之和##################################
+      b = nrow(MtoChange)
+      a = b-1
+      g = ncol(MtoChange)
+      tropicalDistanceSum = 0
+      for (i in 1:a) {
+        gap = sort(MtoChange[b,]-MtoChange[i,])
+        tropicalDistanceSum = tropicalDistanceSum + (gap[g]-gap[1])
+      }
+      print(paste("we are traversing ",circleN,"- (",Dim1,",",Dim2,")"))
+      print(paste('optimal:',optTropicalDistanceSum,'reality:',tropicalDistanceSum))
+      print(cat('the abs of opt minus reality is:',abs(optTropicalDistanceSum - tropicalDistanceSum),'\n'))
+      if (abs(optTropicalDistanceSum - tropicalDistanceSum)<accuracy) {
+        judgeNum <- judgeNum + 1
+        resultMatrixByNormalTraversal[circleN,1] = Dim1; resultMatrixByNormalTraversal[circleN,2] = Dim2; resultMatrixByNormalTraversal[circleN,3] = E
+        print(paste("(",Dim1,",",Dim2,") is good"))
+        break
+      }
+      if (abs(optTropicalDistanceSum - tropicalDistanceSum)>=accuracy) {
+        print(paste("(",Dim1,",",Dim2,") is not good"))
+      }
+    }
+    if (judgeNum!=0) {
+      break
+    }
+  }
+}
+#循环完毕后保存结果矩阵
+write.table(resultMatrixByNormalTraversal,paste("D:/paperData/(120,20)vChanging/(0,",var,")",sep=""),append = TRUE,row.names = FALSE,col.names = FALSE,sep=",")
+Oldt2_1 = proc.time()#程序结束时间
+print(paste("this program lasts",Oldt2_1-Oldt1_1,"second"))

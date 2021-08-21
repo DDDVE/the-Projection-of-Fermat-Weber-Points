@@ -1,9 +1,31 @@
 #此脚本用于记录新方法平均运算时间（规模改变）
-t1_800 = proc.time()#程序开始时间
+t1_Dim15Point90 = proc.time()#程序开始时间
 ###############################
+###############只改这里！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
+setwd("D:/paperData/TimeRecord/NewWay/Dim15Point90")
+files_Dim15Point90 = dir("D:/paperData/TimeRecord/NewWay/Dim15Point90")
+var = 10
+circleNum = 100
+accuracy = 10**(-7) #精度
+resultMatrix = matrix(nrow = circleNum,ncol = 3,byrow = TRUE)#初始化结果矩阵
+
 #计算仅保留两维后的数据矩阵，也就是投影集
-subAlgo = function(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoint,traNum){
+subAlgo = function(M,Dim1,Dim2,circleN,traNum){
   triangle = matrix(nrow = 3,ncol = numOfDim,byrow = TRUE)  #初始化三角形
+  #求最值和最值向量 
+  MAnother = M
+  vectorOfMin = c()
+  vectorOfMax = c()
+  for (j in 1:numOfDim){
+    MAnother[,j] = sort(MAnother[,j])
+    vectorOfMin = c(vectorOfMin,MAnother[1,j])
+    vectorOfMax = c(vectorOfMax,MAnother[numOfPoint,j])
+  }
+  vectorOfMin1 = sort(vectorOfMin)
+  minOfM = vectorOfMin1[1]
+  vectorOfMax1 = sort(vectorOfMax)
+  maxOfM = vectorOfMax1[numOfDim-1]
+
   MtoChange = M#将M保存一下，后续对MtoChange做改动
   for (j in 2:numOfDim) {
     if(j!=Dim1 & j!=Dim2){
@@ -19,7 +41,6 @@ subAlgo = function(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoin
   for (i in 1:numOfDim) {
     f.obj = c(f.obj,0)
   }
-  
   #做f.con的左上1/4个
   f.conLeftUpper = matrix(nrow = (numOfPoint*numOfDim*(numOfDim-1))/2,ncol = numOfPoint);f.conLeftUpper[is.na(f.conLeftUpper)] = 0
   for (i in 1:(numOfPoint*numOfDim*(numOfDim-1))/2) {
@@ -27,7 +48,6 @@ subAlgo = function(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoin
     f.conLeftUpper[i,j+1] = -1    #将-1的元素放进去
   }
   f.conLeftHalf = rbind(f.conLeftUpper,f.conLeftUpper)    #做成f.con的左半边
-  
   #做f.con的右上一小块
   f.conRightUpperPiece = matrix(nrow = (numOfDim*(numOfDim-1))/2,ncol = numOfDim)
   f.conRightUpperPiece[is.na(f.conRightUpperPiece)] = 0
@@ -48,14 +68,12 @@ subAlgo = function(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoin
   }
   f.conRightHalf = rbind(f.conRightUpper,-1*f.conRightUpper)		#做成f.con的右半边
   f.con = cbind(f.conLeftHalf,f.conRightHalf)		#做成完整的f.con
-  
   #生成不等号向量
   f.dir = c()
   a = numOfPoint*numOfDim*(numOfDim-1)
   for (i in 1:a) {
     f.dir = c(f.dir,"<=")
   }
-  
   f.rhsFirstHalf = c()
   numOfDim1 = numOfDim-1
   for (i in 1:numOfPoint){#迭代到点数
@@ -74,21 +92,17 @@ subAlgo = function(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoin
   for (i in numOfDim:1) {
     trueSolution[i] = trueSolution[i] - trueSolution[1] #将FW point标准化
   }
-  b = nrow(MtoChange)
-  g = ncol(MtoChange)
   optTropicalDistanceSum = 0
-  for (i in 1:b) {
+  for (i in 1:numOfPoint) {
     gap = sort(trueSolution-MtoChange[i,])
-    optTropicalDistanceSum = optTropicalDistanceSum + (gap[g]-gap[1])
+    optTropicalDistanceSum = optTropicalDistanceSum + (gap[numOfDim]-gap[1])
   }
   #计算MtoChange最后一行到其余各行的tropical距离之和
-  b = nrow(MtoChange)
-  a = b-1
-  g = ncol(MtoChange)
+  a = numOfPoint-1
   tropicalDistanceSum = 0
   for (i in 1:a) {
-    gap = sort(MtoChange[b,]-MtoChange[i,])
-    tropicalDistanceSum = tropicalDistanceSum + (gap[g]-gap[1])
+    gap = sort(MtoChange[numOfPoint,]-MtoChange[i,])
+    tropicalDistanceSum = tropicalDistanceSum + (gap[numOfDim]-gap[1])
   }
   print(paste('this is the',traNum,'-th traversal'))
   print(paste('we are traversing: ',circleN,"-",Dim1,Dim2))
@@ -129,28 +143,11 @@ subAlgo = function(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoin
 
 
 
-
-###############只改这里！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！
-#haveDoneNum = 100 #前面已经试验过的次数（命名要用）
-circleNum = 100 #试验次数
-
-
-resultMatrix = matrix(nrow = circleNum,ncol = 3,byrow = TRUE)
 for (circleN in 1:circleNum) {
-  #首先生成数据
-  numOfDim = 20;   numOfPoint = 120;    var = 800#这里要改！！！！！！！！！！！！！！！！！！！！！
-  M =  rmvnorm(numOfPoint, rep(0, numOfDim), sigma = diag(var, numOfDim))
-  M = round(M,5)
-  for (i in 1:numOfPoint){
-    for (j in numOfDim:1){
-      M[i,j] = M[i,j] - M[i,1]	#将第一维化为0
-    }
-  }
-  setwd(paste("D:/paperData/(120,20)vChanging/(0,",var,")",sep = ""))
-  write.table(M,paste("(0,",var,")","Dim",numOfDim,"Point",numOfPoint,"--",circleN,"--",M[1,2],".csv",sep=""),sep=",")#保存矩阵
-  
-  
-  
+  #首先读取数据
+  M = data.matrix(read.csv(files_Dim15Point90[circleN]))#这里要改
+  numOfDim = ncol(M);  numOfPoint = nrow(M)
+  #计算FW point
   #生成目标函数的系数向量
   f.obj = c()
   for (i in 1:numOfPoint) {
@@ -218,84 +215,63 @@ for (circleN in 1:circleNum) {
   }
   #将标准化后的FWPoint添加到M的最后一行
   M = rbind(M,FWPoint)
-  MtoChange = M#将M保存一下，后续对MtoChange做改动
-  
-  
   numOfPoint = numOfPoint+1; 
-  MAnother = M
-  vectorOfMin = c()
-  vectorOfMax = c()
-  for (j in 1:numOfDim){
-    MAnother[,j] = sort(MAnother[,j])
-    vectorOfMin = c(vectorOfMin,MAnother[1,j])
-    vectorOfMax = c(vectorOfMax,MAnother[numOfPoint,j])
-  }
-  vectorOfMin1 = sort(vectorOfMin)
-  minOfM = vectorOfMin1[1]
-  vectorOfMax1 = sort(vectorOfMax)
-  maxOfM = vectorOfMax1[numOfDim-1]
-  b1 = numOfDim-1
+
   W = list() #待查看集合
-  L = list() #所有情形的集合
+  jNum = (numOfDim-1)*(numOfDim-2)/2  #终止循环的条件数
+  L=matrix(ncol = 3,byrow=TRUE) #所有情形的集合
   a = numOfDim - 1
-  
   for (i in 2:a) {
     b = i + 1
     for (j in b:numOfDim) {
-      add = list(c(i,j))
-      L = c(L,add)
+      L = rbind(L,matrix(c(i,j,0),ncol = 3))
     }
-  }  #创建包含所有情形的列表
-  P = list()  #临时集合
-  S = list()  #已遍历的集合
+  }
+  L = L[-1,]#创建包含所有情形的列表
+  P = c()  #临时集合(行数)
   e = 0 #终止数
-  accuracy = 10**(-7) #精度
-  jNum = (numOfDim-1)*(numOfDim-2)/2  #终止循环的条件数
   traNum = 0  #遍历次数
-  resultDim = list()  #初始化维度索引
   triangle = matrix(nrow = 3,ncol = numOfDim,byrow = TRUE)  #初始化三角形
-  while (length(S)<jNum && sum(is.na(triangle))>0) {
+  while (sum(L[,3]==1)<jNum && sum(is.na(triangle))>0) {#
     e = e+1
-    if (L[e] %in% S || list(rev(unlist(L[e]))) %in% S) {  #如果当前情况已经遍历过
+    if (L[e,3]==1) {  #如果当前情况已经遍历过
       next  #下一轮循环
     }
-    S = c(S,L[e]);traNum = traNum + 1 #添加进已遍历的集合中
-    Dim1 = unlist(L[e])[1]; Dim2 = unlist(L[e])[2]  #获取第几维
-    resultOfSubAlgo = subAlgo(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoint,traNum)#判断是否是FW point并输出三角形
+    L[e,3] = 1;traNum = traNum + 1 #添加进已遍历的集合中
+    Dim1 = L[e,1];Dim2 = L[e,2]  #获取第几维
+    resultOfSubAlgo = subAlgo(M,Dim1,Dim2,circleN,traNum)#判断是否是FW point并输出三角形
     triangle = resultOfSubAlgo$triangle; trueSolution = resultOfSubAlgo$trueSolution; MtoChange = resultOfSubAlgo$MtoChange
     if (sum(is.na(triangle))==0) {#如果三角形不为空
       break
     }
     #如果最后一行不是FW point
-    b = nrow(MtoChange)
-    if (abs(trueSolution[Dim1]-MtoChange[b,Dim1])<accuracy||abs(trueSolution[Dim2]-MtoChange[b,Dim2])<accuracy) {
+    if (abs(trueSolution[Dim1]-MtoChange[numOfPoint,Dim1])<accuracy||abs(trueSolution[Dim2]-MtoChange[numOfPoint,Dim2])<accuracy) {
       #如果满足line21：
-      if(abs(trueSolution[Dim1]-MtoChange[b,Dim1])<accuracy){k = Dim1}
-      if(abs(trueSolution[Dim2]-MtoChange[b,Dim2])<accuracy){k = Dim2}
+      if(abs(trueSolution[Dim1]-MtoChange[numOfPoint,Dim1])<accuracy){k = Dim1}
+      if(abs(trueSolution[Dim2]-MtoChange[numOfPoint,Dim2])<accuracy){k = Dim2}
       W = c(W,list(k))  #加入待查看集合
       while (length(W)>0 && sum(is.na(triangle))>0) { #当待查看集合不为空且没有可行的三角形时
         k = unlist(W[1])
         print(paste(k,'might be included'))
         print(cat('at this moment these indeces might be included:',unlist(W),'\n'))
         for (i in 1:jNum) {
-          if ((k == unlist(L[i])[1] || k == unlist(L[i])[2]) && !(L[i] %in% S) && !(list(rev(unlist(L[i]))) %in% S)) {#对于包含k且不在S中的数对
-            P = c(P,L[i]) #添加至临时集合P
+          if ((k==L[i,1]||k==L[i,2]) && L[i,3]==0) {#对于包含k且不在S中的数对
+            P = c(P,i) #添加至临时集合P 
           }
         }
         if(length(P)==0){print(cat('but there are nothing includes',k,'left','\n'));W[1] = NULL;next} #如果包含k的情况已经遍历完了就跳过
         for(i1 in 1:length(P)){#对于临时集合P中的元素：
-          S = c(S,P[i1]) ;traNum = traNum + 1 #添加到已遍历的集合S
-          Dim1 = unlist(P[i1])[1]; Dim2 = unlist(P[i1])[2]  #获取第几维
-          resultOfSubAlgo = subAlgo(vectorOfMax,vectorOfMin,Dim1,Dim2,M,minOfM,numOfDim,numOfPoint,traNum)#判断是否是FW point并输出三角形
+          i=unlist(P[i1]);L[i,3]=1; traNum=traNum+1 #添加到已遍历的集合S 
+          Dim1=L[i,1];Dim2=L[i,2]  #获取第几维
+          resultOfSubAlgo = subAlgo(M,Dim1,Dim2,circleN,traNum)#判断是否是FW point并输出三角形
           triangle = resultOfSubAlgo$triangle; trueSolution = resultOfSubAlgo$trueSolution; MtoChange = resultOfSubAlgo$MtoChange
           if (sum(is.na(triangle))==0) {#如果三角形不为空
             break
           }
-          b = nrow(MtoChange)
-          if (abs(trueSolution[Dim1]-MtoChange[b,Dim1])<accuracy||abs(trueSolution[Dim2]-MtoChange[b,Dim2])<accuracy) {#如果最后一行不是但满足line21
+          if (abs(trueSolution[Dim1]-MtoChange[numOfPoint,Dim1])<accuracy||abs(trueSolution[Dim2]-MtoChange[numOfPoint,Dim2])<accuracy) {#如果最后一行不是但满足line21
             #如果满足line21：
-            if(abs(trueSolution[Dim1]-MtoChange[b,Dim1])<accuracy){k = Dim1}
-            if(abs(trueSolution[Dim2]-MtoChange[b,Dim2])<accuracy){k = Dim2}
+            if(abs(trueSolution[Dim1]-MtoChange[numOfPoint,Dim1])<accuracy){k = Dim1}
+            if(abs(trueSolution[Dim2]-MtoChange[numOfPoint,Dim2])<accuracy){k = Dim2}
             if(!(list(k) %in% W)){W = c(W,list(k))}  #加入待查看集合
           }
         }
@@ -308,14 +284,15 @@ for (circleN in 1:circleNum) {
   print(paste('traverse',traNum,'times'))
   if(sum(is.na(triangle))==0){
     print(paste('the feasible plane is spaned by',Dim1,Dim2))
-    resultMatrix[circleN,1] = Dim1; resultMatrix[circleN,2]=Dim2; resultMatrix[circleN,3]=traNum; 
+    resultMatrix[circleN,1] = Dim1; resultMatrix[circleN,2]=Dim2; resultMatrix[circleN,3]=traNum
   }
   
   if(sum(is.na(triangle))>0){
     print(paste('this algorithm didnt work'))
-    resultMatrix[circleN,1] = NA; resultMatrix[circleN,2]=NA; resultMatrix[circleN,3]=NA; 
   }
 }
-write.table(resultMatrix,paste("resultMatrixFor(0,",var,")Dim",numOfDim,"Point",numOfPoint-1,".csv",sep=""),append = TRUE,row.names = FALSE,col.names = FALSE,sep=",")#保存结果矩阵
-t2_800 = proc.time()#程序结束时间
-print(paste("this program lasts",t2_800-t1_800,"second"))
+write.table(resultMatrix,paste("ReDo_resultMatrixFor(0,",var,")Dim",numOfDim,"Point",numOfPoint-1,".csv",sep=""),append = TRUE,row.names = FALSE,col.names = FALSE,sep=",")#保存结果矩阵
+t2_Dim15Point90 = proc.time()#程序结束时间
+print(paste("this program lasts",t2_Dim15Point90 - t1_Dim15Point90,"second"))
+
+

@@ -1,1 +1,3 @@
-In result matrices,  the first column is d_1, the second column is d_2, the third column is traversal steps.
+1.  If the name of a result matrix includs "ByNormalTraversal", then it is the reslut for Algorithm 1, otherwise, it is for Algorithm 4. 
+
+2.  I generated data matrices in the order from 1 to 100, but the "dir()" command in R reads files in the order like "1,10,100,11,12,...,2,20,21,..."

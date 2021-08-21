@@ -1,3 +1,5 @@
-The rows of the reslut matrices of Algorithm 1 and Algorithm 2 are in a different order, which does no affection to the succeed rate of Algorithm 1 and Algorithm 2.
+1.  If the name of a result matrix includs "ByNormalTraversal", then it is the reslut for Algorithm 1, otherwise, it is for Algorithm 4. 
 
-"by normal traversal" means it's made from Algorithm 1.
+2.  I generated data matrices in the order from 1 to 100, but the "dir()" command in R reads files in the order like "1,10,100,2,20,21,..."
+
+
